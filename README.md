@@ -23,8 +23,54 @@ and notifies facilities/security staff in real time.
 
 - Python 3.9 or higher
 - pip
-- A free jabber.hot-chilli.net account for each agent (3 accounts total)
-- Internet connection (to reach jabber.hot-chilli.net XMPP server)
+- Optional: Docker (if running a local Prosody XMPP server)
+
+You can run this project with either:
+- Public XMPP accounts (jabber.hot-chilli.net)
+- A local Prosody server in Docker (recommended for offline/local testing)
+
+---
+
+## Option B — Local XMPP with Prosody (Docker)
+
+If you prefer local testing, start a Prosody container and register the three agent users.
+
+### 1) Start Prosody in Docker
+
+```bash
+docker run -d \
+  --name prosody \
+  -p 5222:5222 \
+  -p 5269:5269 \
+  prosody/prosody:latest
+```
+
+If the container already exists, start it with:
+
+```bash
+docker start prosody
+```
+
+### 2) Register agent accounts inside Prosody
+
+```bash
+docker exec prosody prosodyctl register cem_monitor localhost 123
+docker exec prosody prosodyctl register cem_decision localhost 123
+docker exec prosody prosodyctl register cem_alert localhost 123
+```
+
+These match the default credentials in `main.py`:
+- `cem_monitor@localhost` / `123`
+- `cem_decision@localhost` / `123`
+- `cem_alert@localhost` / `123`
+
+### 3) Run the simulation
+
+```bash
+python main.py
+```
+
+No extra credential flags are needed when using the defaults above.
 
 ---
 
