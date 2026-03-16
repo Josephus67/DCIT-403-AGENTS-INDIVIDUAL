@@ -1,0 +1,5 @@
+# Smart Campus Energy Monitor — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+spade>=3.3.2
+asyncio>=3.4.3
