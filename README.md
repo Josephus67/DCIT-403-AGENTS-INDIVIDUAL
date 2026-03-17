@@ -1,6 +1,6 @@
 # Smart Campus Energy Monitor
 ### DCIT 403 — Individual Intelligent Agent Project
-### Prometheus Methodology | SPADE + jabber.hot-chilli.net
+### Prometheus Methodology | SPADE + Local Prosody (Docker)
 
 ---
 
@@ -10,12 +10,15 @@ A multi-agent system that monitors university campus energy consumption,
 automatically reduces power in unoccupied rooms, detects anomalous activity,
 and notifies facilities/security staff in real time.
 
+This project is configured for local-only execution using a Prosody XMPP server
+running in Docker.
+
 **Three agents:**
 | Agent | JID | Role |
 |-------|-----|------|
-| MonitorAgent | monitor@jabber.hot-chilli.net | Perceives environment (sensors, schedules) |
-| DecisionAgent | decision@jabber.hot-chilli.net | Reasons and acts (device commands, load shedding) |
-| AlertAgent | alert@jabber.hot-chilli.net | Logs events, notifies staff, tracks faults |
+| MonitorAgent | cem_monitor@localhost | Perceives environment (sensors, schedules) |
+| DecisionAgent | cem_decision@localhost | Reasons and acts (device commands, load shedding) |
+| AlertAgent | cem_alert@localhost | Logs events, notifies staff, tracks faults |
 
 ---
 
@@ -23,19 +26,68 @@ and notifies facilities/security staff in real time.
 
 - Python 3.9 or higher
 - pip
-- Optional: Docker (if running a local Prosody XMPP server)
+- Docker Desktop (or Docker Engine)
 
-You can run this project with either:
-- Public XMPP accounts (jabber.hot-chilli.net)
-- A local Prosody server in Docker (recommended for offline/local testing)
+Recommended:
+- Use a Python virtual environment for isolation
+- Keep ports 5222 and 5269 free on your machine
+
+Preflight checks:
+
+```bash
+python --version
+pip --version
+docker --version
+docker info > /dev/null && echo "Docker is running"
+```
 
 ---
 
-## Option B — Local XMPP with Prosody (Docker)
+## Quick Start (First Time Setup)
 
-If you prefer local testing, start a Prosody container and register the three agent users.
+From the project root, run the following in order.
 
-### 1) Start Prosody in Docker
+### 1) Create and activate a virtual environment
+
+macOS/Linux:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### 2) Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3) Start local XMPP (Prosody) and register agent users
+
+```bash
+docker rm -f prosody 2>/dev/null || true
+docker run -d --name prosody -p 5222:5222 -p 5269:5269 prosody/prosody:latest
+sleep 2
+docker exec prosody prosodyctl register cem_monitor localhost 123
+docker exec prosody prosodyctl register cem_decision localhost 123
+docker exec prosody prosodyctl register cem_alert localhost 123
+```
+
+### 4) Run a quick verification
+
+```bash
+python main.py --duration 10
+```
+
+You should see all three agents connect and authenticate.
+
+---
+
+## Local Setup (Docker Prosody)
+
+### 1) Start Prosody
+
+Create and start the container:
 
 ```bash
 docker run -d \
@@ -45,13 +97,13 @@ docker run -d \
   prosody/prosody:latest
 ```
 
-If the container already exists, start it with:
+If it already exists:
 
 ```bash
 docker start prosody
 ```
 
-### 2) Register agent accounts inside Prosody
+### 2) Register local agent accounts
 
 ```bash
 docker exec prosody prosodyctl register cem_monitor localhost 123
@@ -59,110 +111,66 @@ docker exec prosody prosodyctl register cem_decision localhost 123
 docker exec prosody prosodyctl register cem_alert localhost 123
 ```
 
-These match the default credentials in `main.py`:
-- `cem_monitor@localhost` / `123`
-- `cem_decision@localhost` / `123`
-- `cem_alert@localhost` / `123`
+These match the defaults in `main.py`.
 
-### 3) Run the simulation
+Defaults used by the project:
+- Monitor: cem_monitor@localhost / 123
+- Decision: cem_decision@localhost / 123
+- Alert: cem_alert@localhost / 123
 
-```bash
-python main.py
-```
-
-No extra credential flags are needed when using the defaults above.
-
----
-
-## Step 1 — Register three jabber.hot-chilli.net accounts
-
-Go to **https://www.jabber.hot-chilli.net** and register three separate accounts:
-
-| Account purpose | Suggested username |
-|----------------|-------------------|
-| MonitorAgent   | monitor       |
-| DecisionAgent  | decision      |
-| AlertAgent     | alert         |
-
-Each will get a JID like `monitor@jabber.hot-chilli.net`.
-
-> **Note:** jabber.hot-chilli.net is a free public XMPP server. Accounts may require
-> email verification. Use different passwords for each account.
-
----
-
-## Step 2 — Clone / extract the project
-
-```bash
-cd ~
-# If using a zip:
-unzip campus_energy_monitor.zip
-cd campus_energy_monitor
-```
-
----
-
-## Step 3 — Install dependencies
+### 3) Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Verify SPADE is installed:
+Optional check:
+
 ```bash
 python -c "import spade; print(spade.__version__)"
 ```
-Expected: `3.3.x` or higher.
 
----
+### 4) Run the simulation
 
-## Step 4 — Configure credentials
+Default run:
 
-Open `main.py` and update the `DEFAULT_CREDS` dictionary at the top:
-
-```python
-DEFAULT_CREDS = {
-    "monitor":  {"jid": "monitor@jabber.hot-chilli.net",  "pwd": "123456"},
-    "decision": {"jid": "decision@jabber.hot-chilli.net", "pwd": "123456"},
-    "alert":    {"jid": "alert@jabber.hot-chilli.net",    "pwd": "123456"},
-}
-```
-
-Replace `YOUR_*_PASSWORD` with the passwords you chose during registration.
-
-The passwords have been set as follows:
-- MonitorAgent: 123456
-- DecisionAgent: 1234567
-- AlertAgent: 1234567
-
-Alternatively, pass credentials as command-line arguments (see Step 5).
-
----
-
-## Step 5 — Run the simulation
-
-### Default run (2 real minutes = ~2 simulated hours):
 ```bash
 python main.py
 ```
 
-### Custom duration (e.g. 5 real minutes):
+Custom duration (seconds):
+
 ```bash
 python main.py --duration 300
 ```
 
-### Run indefinitely (Ctrl+C to stop):
+Run indefinitely:
+
 ```bash
 python main.py --duration 0
 ```
 
-### Pass credentials on the command line:
+If you changed credentials, pass them via CLI:
+
 ```bash
 python main.py \
-  --monitor-jid  monitor@jabber.hot-chilli.net  --monitor-pwd  123456 \
-  --decision-jid decision@jabber.hot-chilli.net --decision-pwd 123456 \
-  --alert-jid    alert@jabber.hot-chilli.net    --alert-pwd    123456
+  --monitor-jid  cem_monitor@localhost  --monitor-pwd 123 \
+  --decision-jid cem_decision@localhost --decision-pwd 123 \
+  --alert-jid    cem_alert@localhost    --alert-pwd 123
 ```
+
+---
+
+## Success Checklist
+
+After startup, confirm these lines appear:
+- Agent cem_alert@localhost connected and authenticated.
+- Agent cem_decision@localhost connected and authenticated.
+- Agent cem_monitor@localhost connected and authenticated.
+
+Expected behavior during shutdown:
+- You may see connection_lost: (None,)
+- This is normal when agents stop gracefully
 
 ---
 
@@ -170,61 +178,43 @@ python main.py \
 
 ```
 campus_energy_monitor/
-│
-├── main.py                        # Entry point — starts all agents
-├── requirements.txt
-├── energy_monitor.log             # Generated on first run
-│
-├── simulation/
-│   └── environment.py             # Simulated campus (sensors, devices, schedule)
-│
-├── agents/
-│   ├── monitor_agent.py           # MonitorAgent — perceive
-│   ├── decision_agent.py          # DecisionAgent — decide + act
-│   └── alert_agent.py             # AlertAgent — notify + log
-│
-└── utils/
-    ├── messages.py                # Message type definitions and constructors
-    └── logger.py                  # Structured logging to stdout and file
+|
++-- main.py                        # Entry point — starts all agents
++-- requirements.txt
++-- energy_monitor.log             # Generated on first run
+|
++-- simulation/
+|   +-- environment.py             # Simulated campus (sensors, devices, schedule)
+|
++-- agents/
+|   +-- monitor_agent.py           # MonitorAgent — perceive
+|   +-- decision_agent.py          # DecisionAgent — decide + act
+|   +-- alert_agent.py             # AlertAgent — notify + log
+|
++-- utils/
+    +-- messages.py                # Message type definitions and constructors
+    +-- logger.py                  # Structured logging to stdout and file
 ```
 
 ---
 
 ## What to Expect During a Run
 
-```
+```text
 ============================================================
   Smart Campus Energy Monitor
   DCIT 403 — Intelligent Agent System (Prometheus)
 ============================================================
 
 [System] Initialising simulated environment...
-[AlertAgent]    Online as alert@jabber.hot-chilli.net
-[DecisionAgent] Online as decision@jabber.hot-chilli.net
-[MonitorAgent]  Online as monitor@jabber.hot-chilli.net
+[System] Starting AlertAgent...
+[AlertAgent] Online as cem_alert@localhost
+[System] Starting DecisionAgent...
+[DecisionAgent] Online as cem_decision@localhost
+[System] Starting MonitorAgent...
+[MonitorAgent] Online as cem_monitor@localhost
 
 [System] All agents running. Simulation in progress...
-
-[MonitorAgent]  Polled 6 rooms | Sim time: Monday 08:05
-
-[DecisionAgent] Evaluating LH-1 | Occupied: False | Schedule: idle | Time: Monday 08:05
-[DecisionAgent]  → Plan P1: Reducing devices in LH-1
-[DecisionAgent]   ✓ LH-1/lights → dim
-[DecisionAgent]   ✓ LH-1/AC → eco
-[DecisionAgent]   ✓ LH-1/projector → off
-
-09:00:01  INFO      📋  [LOG] LH-1: Device command executed: lights → dim
-09:00:01  INFO      📋  [LOG] LH-1: Device command executed: AC → eco
-
-[DecisionAgent] Evaluating LH-1 | Occupied: True | Schedule: active | Time: Monday 09:10
-[DecisionAgent]  → Plan P2: Restoring devices in LH-1
-[DecisionAgent]   ✓ LH-1/lights → on
-[DecisionAgent]   ✓ LH-1/AC → on
-
-[DecisionAgent] 🔋 PEAK HOUR — activating load shedding (Monday 12:00)
-...
-09:01:30  WARNING   🚨  [SECURITY] LAB-B: Occupancy detected outside scheduled hours at Saturday 23:00
-09:01:30  INFO      📣  [NOTIFY → Security Desk]: [ANOMALY] LAB-B at Saturday 23:00: ...
 ```
 
 ---
@@ -238,12 +228,12 @@ campus_energy_monitor/
 | Goal G1.3 | `PeakHourBehaviour` in DecisionAgent (Plan P4) |
 | Goals G3.2, G3.3 | `ReceiveAlertBehaviour` in AlertAgent |
 | Plan P3 (retry) | `_command_device()` in DecisionAgent |
-| ROOM_STATE_UPDATE | `utils/messages.py` → `make_room_state_update()` |
-| ANOMALY_FLAG | `utils/messages.py` → `make_anomaly_flag()` |
-| ALERT_REQUEST | `utils/messages.py` → `make_alert_request()` |
-| Acquaintance diagram | MonitorAgent ↔ DecisionAgent ↔ AlertAgent via XMPP ACL |
-| Environment percepts | `simulation/environment.py` → `get_room_state()` |
-| Environment actions | `simulation/environment.py` → `send_device_command()` |
+| ROOM_STATE_UPDATE | `utils/messages.py` -> `make_room_state_update()` |
+| ANOMALY_FLAG | `utils/messages.py` -> `make_anomaly_flag()` |
+| ALERT_REQUEST | `utils/messages.py` -> `make_alert_request()` |
+| Acquaintance diagram | MonitorAgent <-> DecisionAgent <-> AlertAgent via XMPP ACL |
+| Environment percepts | `simulation/environment.py` -> `get_room_state()` |
+| Environment actions | `simulation/environment.py` -> `send_device_command()` |
 | Fault registry belief | `AlertAgent.fault_registry` dict |
 | Pending retries belief | `DecisionAgent.pending_retries` dict |
 
@@ -251,29 +241,74 @@ campus_energy_monitor/
 
 ## Troubleshooting
 
-**"Authentication failed" on startup**
-→ Double-check your JID and password in `main.py`.
-→ Ensure the jabber.hot-chilli.net account was successfully verified/activated.
-→ Try logging in with a desktop XMPP client (e.g. Gajim) to confirm credentials.
+**"Error during the connection with the server"**
+- Check container is running: `docker ps`
+- Check XMPP port is listening: `lsof -nP -iTCP:5222 -sTCP:LISTEN`
+- Check Prosody logs: `docker logs --tail 80 prosody`
+- Verify users exist: `docker exec prosody prosodyctl show user cem_monitor@localhost`
+- Ensure your run command uses localhost JIDs, not external domains
 
-**"Connection refused" or timeout**
-→ Check your internet connection.
-→ jabber.hot-chilli.net may be temporarily down — retry after a few minutes.
+**Prosody shows TLS key permission errors**
+
+If logs contain `Failed to load '/etc/prosody/certs/localhost.key'` or
+`No stream features to offer`, fix permissions and restart:
+
+```bash
+docker exec prosody sh -lc 'chown prosody:prosody /etc/prosody/certs/localhost.key /etc/prosody/certs/localhost.crt && chmod 640 /etc/prosody/certs/localhost.key && chmod 644 /etc/prosody/certs/localhost.crt'
+docker restart prosody
+```
+
+If problems persist, recreate Prosody completely:
+
+```bash
+docker rm -f prosody
+docker run -d --name prosody -p 5222:5222 -p 5269:5269 prosody/prosody:latest
+sleep 2
+docker exec prosody prosodyctl register cem_monitor localhost 123
+docker exec prosody prosodyctl register cem_decision localhost 123
+docker exec prosody prosodyctl register cem_alert localhost 123
+```
+
+**"Authentication failed" on startup**
+- Re-register users in Prosody and keep JIDs/passwords aligned with `main.py`.
+- Ensure all three accounts are `@localhost`.
 
 **Agents start but no messages are exchanged**
-→ Ensure all three JIDs are on the same server (all @xmpp.jp).
-→ SPADE requires the recipient JID to be available before sending. The startup
-   delay (`asyncio.sleep`) in main.py handles this — if issues persist, increase it.
+- Start order matters. Keep AlertAgent and DecisionAgent online before MonitorAgent.
+- Ensure recipient JIDs are exactly the same domain and usernames.
 
 **ModuleNotFoundError: spade**
-→ Run `pip install spade` or `pip install -r requirements.txt` again.
-→ Confirm you are using the correct Python environment.
+- Run `pip install -r requirements.txt` again.
+- Confirm you are using the correct Python environment.
+
+**Port already in use (5222/5269)**
+- Stop conflicting service, or remove and recreate Prosody with different host ports
+- Check port owners: `lsof -nP -iTCP:5222 -sTCP:LISTEN` and `lsof -nP -iTCP:5269 -sTCP:LISTEN`
+
+---
+
+## Daily Run Workflow
+
+For later runs (after first-time setup):
+
+```bash
+source .venv/bin/activate
+docker start prosody
+python main.py
+```
+
+To stop everything:
+
+```bash
+docker stop prosody
+deactivate
+```
 
 ---
 
 ## Simulated Time
 
-The environment runs at **60× real time** (1 real second = 1 simulated minute).
+The environment runs at **60x real time** (1 real second = 1 simulated minute).
 A 2-minute real run covers approximately 2 simulated hours.
 
 You can change this by editing `_time_speed` in `simulation/environment.py`.
@@ -281,4 +316,4 @@ You can change this by editing `_time_speed` in `simulation/environment.py`.
 ---
 
 *DCIT 403 Semester Project — Prometheus Methodology*
-*Platform: Python 3.9+ | SPADE 3.3+ | XMPP server: xmpp.jp*
+*Platform: Python 3.9+ | SPADE 3.3+ | XMPP server: local Prosody (Docker)*

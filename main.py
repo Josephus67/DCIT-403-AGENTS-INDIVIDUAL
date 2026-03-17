@@ -3,10 +3,10 @@ main.py
 ───────
 Entry point for the Smart Campus Energy Monitor agent system.
 
-Starts three SPADE agents against the jabber.ccc.de server:
-  - MonitorAgent   (cem_monitor@jabber.ccc.de)
-  - DecisionAgent  (cem_decision@jabber.ccc.de)
-  - AlertAgent     (cem_alert@jabber.ccc.de)
+Starts three SPADE agents against a local Prosody server in Docker:
+    - MonitorAgent   (cem_monitor@localhost)
+    - DecisionAgent  (cem_decision@localhost)
+    - AlertAgent     (cem_alert@localhost)
 
 A shared simulated Environment object is passed to MonitorAgent and
 DecisionAgent so they can read sensors and issue commands respectively.
@@ -16,7 +16,7 @@ Usage
   python main.py
 
   Or with custom credentials:
-  python main.py --monitor-jid cem_monitor@jabber.ccc.de --monitor-pwd yourpassword ...
+    python main.py --monitor-jid cem_monitor@localhost --monitor-pwd yourpassword ...
 
 See README.md for full setup instructions.
 """
@@ -35,7 +35,7 @@ from agents.decision_agent  import DecisionAgent
 from agents.alert_agent     import AlertAgent
 
 # ── Default XMPP credentials ─────────────────────────────────────────────
-# Change these to your registered jabber.ccc.de accounts before running.
+# Change these to your local Prosody accounts before running.
 DEFAULT_CREDS = {
     "monitor":  {"jid": "cem_monitor@localhost",  "pwd": "123"},
     "decision": {"jid": "cem_decision@localhost", "pwd": "123"},
@@ -156,6 +156,7 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    SIM_DURATION = args.duration
     creds = {
         "monitor":  {"jid": args.monitor_jid,  "pwd": args.monitor_pwd},
         "decision": {"jid": args.decision_jid, "pwd": args.decision_pwd},
